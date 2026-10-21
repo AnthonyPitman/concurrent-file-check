@@ -4,50 +4,55 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        List<Task<int>> wordCounts = [];
+        List<Task<Result>> wordCounts = [];
 
         foreach (string argument in args)
         {
             wordCounts.Add(CountWords(argument));
         }
 
-        var result = await Task.WhenAll(wordCounts);
+        var results = await Task.WhenAll(wordCounts);
 
         var total = 0;
-        for (var i = 0; i < args.Length; i++)
+        foreach (var result in results)
         {
-            var currentPath = args[i];
-            var wordCount = result[i];
-            if (wordCount > -1)
+            Console.WriteLine(result.ToString());
+            if (result.Error is null)
             {
-                Console.WriteLine($"{currentPath}: {wordCount} words");
-                total += wordCount;
+                total += result.WordCount;
             }
-            else if (wordCount == -1)
-                Console.WriteLine($"{currentPath}: ERROR - file not found");
-            else
-                Console.WriteLine($"{currentPath}: ERROR - file could not be read");
         }
+
         Console.WriteLine($"Total: {total} words");
 
     }
 
-    private static async Task<int> CountWords(string path)
+    private static async Task<Result> CountWords(string path)
     {
-        if (!Path.Exists(path))
-        {
-            return -1;
-        }
-
         try
         {
             var text = await File.ReadAllTextAsync(path);
-            var wordCount = text.Split([' ', '\n', '\t'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Length;
-            return wordCount;
+            var wordCount = text.Split((char[]?)null, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Length;
+            return new Result(path, wordCount, null);
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            return -2;
+            return new Result(path, -1, $"ERROR - {e.Message}");
+        }
+    }
+
+    private record Result(string Path, int WordCount, string? Error)
+    {
+        public override string ToString()
+        {
+            if (Error is null)
+            {
+                return $"{Path}: {WordCount} words";
+            }
+            else
+            {
+                return $"{Path}: {Error}";
+            }
         }
     }
 }
